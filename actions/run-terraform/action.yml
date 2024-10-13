@@ -92,7 +92,7 @@ runs:
         fi
 
     - name: Setup .tf-state bucket
-      uses: lolmeida/peah-pipelines-templates/actions/config-bucket@main
+      uses: peah-pipelines-templates/actions/config-bucket@main
       with:
         aws-region: ${{ inputs.aws-region }}
         bucket: ${{ inputs.state-bucket }}
@@ -128,7 +128,7 @@ runs:
     - name: Read Plan
       if: env.PLAN_EXIT_CODE == '2'
       id: read-tf-plan
-      uses: lolmeida/peah-pipelines-templates/actions/read-file@main
+      uses: peah-pipelines-templates/actions/read-file@main
       with:
         path: ${{ env.WORKING_DIR }}/plan.txt
 

@@ -31,7 +31,7 @@ runs:
         --jira-issues="${{ inputs.jira-issues }}"
 
     - name: Publish
-      uses: lolmeida/peah-pipelines-templates/actions/confluence@main
+      uses: peah-pipelines-templates/actions/confluence@main
       with:
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}

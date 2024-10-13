@@ -38,7 +38,7 @@ runs:
   steps:
     - name: Setup ECR
       id: ecr-row
-      uses: lolmeida/peah-pipelines-templates/actions/setup-ecr@main
+      uses: peah-pipelines-templates/actions/setup-ecr@main
       with:
         aws-region: ${{ inputs.aws-region }}
         aws-role: ${{ inputs.aws-role }}
@@ -90,7 +90,7 @@ runs:
         echo "image=${IMAGE}" >> $GITHUB_OUTPUT
 
     - name: Setup ECR - CN
-      uses: lolmeida/peah-pipelines-templates/actions/setup-ecr@main
+      uses: peah-pipelines-templates/actions/setup-ecr@main
       id: ecr-cn
       with:
         aws-region: ${{ inputs.aws-region-cn }}

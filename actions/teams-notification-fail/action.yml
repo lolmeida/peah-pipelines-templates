@@ -52,7 +52,7 @@ runs:
         echo steps=$FAIL_STEPS_IDS >> $GITHUB_OUTPUT
 
     - name: "Notify teams channel"
-      uses: lolmeida/peah-pipelines-templates/actions/teams-notification@main
+      uses: peah-pipelines-templates/actions/teams-notification@main
       with:
         body-json: "{
           \"type\": \"message\",

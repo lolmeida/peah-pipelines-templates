@@ -53,11 +53,11 @@ runs:
         role-to-assume: ${{ inputs.aws-role }}
 
     - name: Config ECR Repo
-      uses: lolmeida/peah-pipelines-templates/actions/run-terraform@main
+      uses: peah-pipelines-templates/actions/run-terraform@main
       with:
         id: ecr
         aws-region: ${{ inputs.aws-region }}
-        repo: 'lolmeida/peah-pipelines-templates'
+        repo: 'peah-pipelines-templates'
         approvers: ${{ inputs.approvers }}
         repo-ref: 'main'
         repo-token: ${{ inputs.repo-token }}

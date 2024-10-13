@@ -50,10 +50,10 @@ runs:
   steps:
     - name: MemoryDB Terraform
       id: memory-db
-      uses: lolmeida/peah-pipelines-templates/actions/run-terraform@main
+      uses: peah-pipelines-templates/actions/run-terraform@main
       with:
         aws-region: ${{ inputs.aws-region }}
-        repo: 'lolmeida/peah-pipelines-templates'
+        repo: 'peah-pipelines-templates'
         repo-ref: 'main'
         repo-token: ${{ inputs.repo-token }}
         working-directory: 'terraform/memorydb'

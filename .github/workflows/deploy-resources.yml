@@ -75,7 +75,7 @@ jobs:
     steps:
       - name: TRM Utils
         id: utils
-        uses: lolmeida/peah-pipelines-templates/actions/utils@main
+        uses: peah-pipelines-templates/actions/utils@main
         with:
           git-ref: ${{ github.head_ref || github.ref_name }}
           namespace: ${{ inputs.namespace }}
@@ -109,7 +109,7 @@ jobs:
 
       - name: Get TAG
         id: tag
-        uses: lolmeida/peah-pipelines-templates/actions/generate-tag@main
+        uses: peah-pipelines-templates/actions/generate-tag@main
         with:
           git-ref: ${{ steps.utils.outputs.git_ref }}
           date-hash-format: ${{ (steps.utils.outputs.git_ref == 'main' || contains(steps.utils.outputs.git_ref, 'hotfix/')) && 'true' || 'false' }}
@@ -117,7 +117,7 @@ jobs:
 
       - name: Deploy To ${{ inputs.environment }}
         id: deploy
-        uses: lolmeida/peah-pipelines-templates/actions/helm@main
+        uses: peah-pipelines-templates/actions/helm@main
         with:
           aws-region: ${{ steps.utils.outputs.region }}
           aws-role: ${{ steps.utils.outputs.role_arn_eks }}
@@ -134,7 +134,7 @@ jobs:
       - name: Publish Release notes to confluence
         id: publish_release_notes_to_confluence
         if: steps.utils.outputs.env == 'e2e' || steps.utils.outputs.env == 'prod'
-        uses: lolmeida/peah-pipelines-templates/actions/publish-release-confluence@main
+        uses: peah-pipelines-templates/actions/publish-release-confluence@main
         with:
           username: ${{ secrets.TECHNICAL_USER_USERNAME }}
           password: ${{ secrets.TECHNICAL_USER_PASSWORD }}
