@@ -1,0 +1,76 @@
+name: 'Semver Conventional Commits'
+description: 'Calculate the next release version based on conventional commits since latest tag'
+author: Nicolas Giard
+inputs:
+  token:
+    description: GitHub Token
+    required: true
+  branch:
+    description: The branch to use when fetching list of commits to compare against
+    required: false
+    default: main
+  majorList:
+    description: Comma separated commit prefixes, used to bump Major version
+    required: false
+    default: ''
+  minorList:
+    description: Comma separated commit prefixes, used to bump Minor version
+    required: false
+    default: feat, feature
+  patchList:
+    description: Comma separated commit prefixes, used to bump Patch version
+    required: false
+    default: fix, bugfix, perf, refactor, test, tests
+  patchAll:
+    description: If set to true, will ignore patchList and count any commit as a Patch
+    required: false
+    default: 'false'
+  skipInvalidTags:
+    description: If set to true, will skip tags that are not valid semver until it finds a proper one (up to maxTagsFetch from latest).
+    required: false
+    default: 'true'
+  noVersionBumpBehavior:
+    description: Whether to exit with an error, warning or silently when none of the commits result in a version bump. (error, warn, current, patch, silent)
+    required: false
+    default: error
+  noNewCommitBehavior:
+    description: Whether to exit with an error, warning or silently when there are no new commits since the latest tag. (error, warn, current, silent)
+    required: false
+    default: error
+  prefix:
+    description: A prefix that will be striped when parsing tags (e.g. `foobar/`). Any other prefix will be ignored. The prefix will be added back to the output values.
+    required: false
+    default: ''
+  additionalCommits:
+    description: A list of additional commit messages to parse in order to calculate semver.
+    required: false
+  fromTag:
+    description: Override the tag to use when comparing against the branch in order to fetch the list of commits.
+    required: false
+    default: ''
+  maxTagsToFetch:
+    description: Maximum number of tags to fetch from latest.
+    required: false
+    default: '10'
+  hotfix-prefix:
+    description: The hotfix prefix.
+    required: true
+outputs:
+  current:
+    description: Current version number / latest tag.
+  next:
+    description: Next version number in format v0.0.0
+  nextStrict:
+    description: Next version number without the v prefix.
+  nextMajor:
+    description: Next version major number in format v0
+  nextMajorStrict:
+    description: Next version major number only.
+  bump:
+    description: Next version behavior.
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+branding:
+  icon: fast-forward
+  color: red

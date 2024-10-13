@@ -1,0 +1,9 @@
+node_type                   = "db.t4g.small"
+number_of_replicas_by_shard = 2
+service_vpc_name            = "iis-e2e"
+product_vpc_name            = "product-resources-iis-e2e"
+region                      = "US"
+aws_region                  = "us-east-1"
+availability_zones          = ["us-east-1b", "us-east-1c", "us-east-1d"]
+snapshot_window             = "03:00-05:00"
+event_rule_schedule         = "cron(45 5 * * ? *)"

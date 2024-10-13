@@ -1,0 +1,56 @@
+name: Integration Tests
+description: Run integration tests
+
+inputs:
+  hub:
+    description: "The hub"
+    required: true
+
+  environment:
+    description: "Environment"
+    required: true
+
+  repo-token:
+    description: "Repo token"
+    required: true
+
+  repo-path:
+    description: "Repo path to run tests"
+    required: true
+
+  repo:
+    description: "Test Repository name"
+    required: false
+
+  git-ref:
+    description: "Git ref"
+    required: false
+    default: main
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout test repository
+      if: ${{ inputs.repo }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        token: ${{ inputs.repo-token }}
+        ref: ${{ inputs.git-ref }}
+        path: "__integration-tests__"
+
+    - name: Run Script
+      shell: bash
+      run: |
+        test_path="${{ inputs.repo-path }}"
+        
+        if [ -n "${{ inputs.repo }}" ]; then
+          test_path="__integration-tests__/$test_path"
+        fi
+        
+        pushd $test_path
+        
+        chmod +x run.sh
+        ./run.sh ${{ inputs.hub }}-${{ inputs.environment }}
+ 
+        popd

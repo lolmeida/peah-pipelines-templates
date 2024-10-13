@@ -1,0 +1,44 @@
+name: Publish release notes confluence
+description: Publish release notes confluence
+inputs:
+  username:
+    description: "The confluence username"
+    required: true
+  password:
+    description: "The confluence password"
+    required: true
+  parent-id:
+    description: "The parent id"
+    required: true
+  page-title:
+    description: "The page title"
+    required: true
+  action:
+    description: "The action (GET, to read page, REPLACE to replace all page, PREPEND to append to the begin of the page.)"
+    required: true
+  body:
+    description: "The body"
+    required: true
+outputs:
+  html:
+    description: "The html"
+    value: ${{ steps.confluence.outputs.html }}
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        INSTALL=$(pip install atlassian-python-api)
+
+    - name: Confluence ${{ inputs.action }}
+      id: confluence
+      shell: bash
+      run: >
+        python -u ${{ github.action_path }}/run.py
+        --username="${{ inputs.username }}" 
+        --password="${{ inputs.password }}" 
+        --page-title="${{ inputs.page-title }}"
+        --parent-id="${{ inputs.parent-id }}"
+        --action="${{ inputs.action }}"
+        --body="${{ inputs.body }}"

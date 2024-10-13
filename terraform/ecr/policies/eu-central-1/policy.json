@@ -1,0 +1,68 @@
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "integration pull access",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::126999896901:root"
+      },
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ]
+    },
+    {
+      "Sid": "production pull access",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::035572896045:root"
+      },
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ]
+    },
+    {
+      "Sid": "AllowCrossAccountPull",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::488143307923:root"
+      },
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:ListImages"
+      ]
+    },
+    {
+      "Sid": "orbit non prod pull access",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::786613681215:root"
+      },
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:ListImages"
+      ]
+    },
+    {
+      "Sid": "orbit prod pull access",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::112111801379:root"
+      },
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:ListImages"
+      ]
+    }
+  ]
+}

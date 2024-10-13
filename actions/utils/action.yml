@@ -1,0 +1,98 @@
+name: 'Utils'
+author: 'TRM'
+description: 'GitHub action for retrieving AWS information, like region, arn prefix and others.'
+branding:
+  icon: 'cloud'
+  color: 'blue'
+inputs:
+  hub:
+    description: 'The deploy hub.'
+    required: true
+  env:
+    description: 'The deploy env'
+    required: true
+  is-action-call:
+    description: "If is called by an action."
+    required: false
+    default: 'false'
+  git-ref:
+    description: 'The git ref'
+    required: false
+    default: "_NOT_SET_"
+  product:
+    description: 'The product key (modes, theme, am, resources)'
+    required: true
+  product-key:
+    description: 'The product name (name of service or resource).'
+    required: true
+  canary-percentage:
+    description: 'The percentage of canary traffic.'
+    required: false
+    default: '0'
+outputs:
+  git_ref:
+    description: 'The git ref'
+  hub:
+    description: 'The hub'
+  env:
+    description: 'The env'
+  fullname_env:
+    description: 'The full env name'
+  region:
+    description: 'The region'
+  region_global_resources:
+    description: 'The region to access the global resources like ecr'
+  role_arn_global_resources:
+    description: 'The role to access the global resources like ecr'
+  region_global_resources_row:
+    description: 'The region to access the global resources like ecr on RoW'
+  role_arn_global_resources_row:
+    description: 'The role to access the global resources like ecr on RoW'
+  region_global_resources_cn:
+    description: 'The region to access the global resources like ecr on CN'
+  role_arn_global_resources_cn:
+    description: 'The role to access the global resources like ecr on CN'
+  account_id:
+    description: 'The account id'
+  arn_prefix:
+    description: 'The arn prefix'
+  role_arn_eks:
+    description: 'The role arn to access the eks.'
+  role_arn_cicd:
+    description: 'The role arn of CICD.'
+  github_team_name:
+    description: 'The github team name.'
+  base_arn:
+    description: 'The base arn'
+  team:
+    description: 'The team name'
+  team_q_numbers:
+    description: 'The team q numbers'
+  namespace:
+    description: 'The namespace by product'
+  product:
+    description: 'The product name'
+  product_key:
+    description: 'The product key'
+  confluence_parent_page_id:
+    description: 'The confluence parent page id'
+  confluence_page_release_version_board_page_title:
+    description: 'The confluence page release version board page title'
+  confluence_page_release_notes_page_title:
+    description: 'The confluence page release notes page title'
+  release_candidate_prefix:
+    description: 'The release candidate prefix'
+  release_hotfix_prefix:
+    description: 'Hotfix release prefix'
+  eks_name:
+    description: 'The eks name'
+  canary-regex:
+    description: 'The canary regex'
+  teams_notification_deploy_success:
+    description: 'The teams notification workflows url to notify in case of success'
+  teams_notification_deploy_fail:
+    description: 'The teams notification workflows url to notify in case of fail'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+  post: 'dist/cleanup/index.js'

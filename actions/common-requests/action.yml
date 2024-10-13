@@ -1,0 +1,72 @@
+name: Most Common Requests
+description: Run Most Common Requests
+
+inputs:
+  hub:
+    description: "The hub"
+    required: true
+    default: emea
+
+  environment:
+    description: "Environment"
+    required: true
+    default: e2e
+
+  repo-token:
+    description: "Repo token"
+    required: true
+
+  repo-path:
+    description: "Repo path to run tests"
+    required: true
+
+  repo:
+    description: "Test repository"
+    required: false
+  
+  git-ref:
+    description: "Git ref"
+    required: false
+    default: main
+
+  run-command:
+    description: "Run Command"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout test repository
+      if: ${{ inputs.repo }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        token: ${{ inputs.repo-token }}
+        ref: ${{ inputs.git-ref }}
+        path: "__common-request-tests__"
+
+    - name: Run Script
+      shell: bash
+      run: |
+        test_path="${{ inputs.repo-path }}/${{ inputs.hub }}-${{ inputs.environment }}"
+
+        if [ -n "${{ inputs.repo }}" ]; then
+          test_path="__common-request-tests__/$test_path"
+        fi
+        pushd $test_path
+        
+        case "${{ inputs.run-command }}" in
+          "before")
+            chmod +x run-save.sh
+            ./run-save.sh
+            ;;
+          "after")
+            chmod +x run-verify.sh
+            ./run-verify.sh
+            ;;
+          *)
+            false
+            ;;
+        esac
+        
+        popd

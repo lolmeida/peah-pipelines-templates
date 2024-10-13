@@ -1,0 +1,61 @@
+name: Publish release notes confluence
+description: Publish release notes confluence
+inputs:
+  username:
+    description: "The confluence username"
+    required: true
+  password:
+    description: "The confluence password"
+    required: true
+  hub:
+    description: "The hub (EMEA, US, CN)"
+    required: true
+  env:
+    description: "The env (test, int, e2e, prod)"
+    required: true
+  page-title:
+    description: "The page title"
+    required: true
+  parent-id:
+    description: "The parent id"
+    required: true
+  service-name:
+    description: "The Service name"
+    required: true
+  release-version:
+    description: "The service release version"
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Get content page
+      id: get
+      uses: INFOTAIN/trm-pipelines-templates/actions/confluence@main
+      with:
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+        page-title: ${{ inputs.page-title }}
+        parent-id: ${{ inputs.parent-id }}
+        action: "GET"
+        body: ${{ steps.utils.outputs.html }}
+
+    - name: Generate the release board
+      id: generate
+      shell: bash
+      run: >
+        python -u ${{ github.action_path }}/generate.py
+        --current-body="${{ steps.get.outputs.html }}"
+        --region="${{ inputs.hub }}"
+        --environment="${{ inputs.env }}"
+        --service-name="${{ inputs.service-name }}"
+        --release-version="${{ inputs.release-version }}"
+
+    - name: Publish
+      uses: INFOTAIN/trm-pipelines-templates/actions/confluence@main
+      with:
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+        page-title: ${{ inputs.page-title }}
+        parent-id: ${{ inputs.parent-id }}
+        action: "REPLACE"
+        body: ${{ steps.generate.outputs.release_board }}

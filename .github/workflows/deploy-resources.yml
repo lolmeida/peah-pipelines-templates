@@ -1,0 +1,146 @@
+name: Deploy Resources
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Working directory"
+        required: false
+        type: string
+        default: ./
+      python-version:
+        description: "Python version to use"
+        type: string
+        default: "3.10"
+      file-args:
+        description: "Files to deploy"
+        required: true
+        type: string
+      helm-version:
+        description: "Helm version to use"
+        type: string
+        default: v3.15.4
+      runner-label:
+        description: "Runs-on Label"
+        type: string
+        default: "cawe-linux-x64-general-small"
+      helm-vars:
+        description: "The list of vars for helm"
+        required: false
+        type: string
+      service:
+        description: "The service"
+        required: true
+        type: string
+      hub:
+        description: "The hub"
+        type: string
+        default: "emea"
+      environment:
+        description: "The env"
+        type: string
+        default: "test"
+      namespace:
+        description: "The namespace"
+        type: string
+        default: "sep"
+      product:
+        description: "The product"
+        type: string
+        default: "resources"
+      dry-run:
+        description: "Dry Run test"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      TECHNICAL_USER_USERNAME:
+        description: "The atc user name"
+        required: true
+      TECHNICAL_USER_PASSWORD:
+        description: "The atc user password"
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ${{ inputs.runner-label }}
+    environment: ${{inputs.hub}}-${{inputs.environment}}
+
+    steps:
+      - name: TRM Utils
+        id: utils
+        uses: INFOTAIN/trm-pipelines-templates/actions/utils@main
+        with:
+          git-ref: ${{ github.head_ref || github.ref_name }}
+          namespace: ${{ inputs.namespace }}
+          hub: ${{ inputs.hub }}
+          env: ${{ inputs.environment }}
+          product: ${{ inputs.product }}
+          product-key: ${{ inputs.service }}
+
+      - name: Set up Python
+        id: setup_python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Set up Helm
+        id: setup_helm
+        uses: Azure/setup-helm@v3
+        with:
+          version: ${{ inputs.helm-version }}
+
+      - name: job details
+        run: |
+          echo "Utils: ${{ toJSON(steps.utils.outputs) }}"
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.utils.outputs.git_ref }}
+          path: ${{ inputs.working-directory }}
+
+      - name: Get TAG
+        id: tag
+        uses: INFOTAIN/trm-pipelines-templates/actions/generate-tag@main
+        with:
+          git-ref: ${{ steps.utils.outputs.git_ref }}
+          date-hash-format: ${{ (steps.utils.outputs.git_ref == 'main' || contains(steps.utils.outputs.git_ref, 'hotfix/')) && 'true' || 'false' }}
+          type-of-release: ${{ inputs.type-of-release }}
+
+      - name: Deploy To ${{ inputs.environment }}
+        id: deploy
+        uses: INFOTAIN/trm-pipelines-templates/actions/helm@main
+        with:
+          aws-region: ${{ steps.utils.outputs.region }}
+          aws-role: ${{ steps.utils.outputs.role_arn_eks }}
+          aws-cicd-role: ${{ steps.utils.outputs.role_arn_cicd }}
+          release-version: ${{ steps.tag.outputs.tag }}
+          eks-name: ${{ steps.utils.outputs.eks_name }}
+          namespace: ${{ inputs.namespace }}
+          hub: ${{ steps.utils.outputs.hub }}
+          environment: ${{ steps.utils.outputs.env }}
+          dry-run: ${{ inputs.dry-run }}
+          service: ${{ inputs.service }}
+          file-args: ${{ inputs.file-args }}
+
+      - name: Publish Release notes to confluence
+        id: publish_release_notes_to_confluence
+        if: steps.utils.outputs.env == 'e2e' || steps.utils.outputs.env == 'prod'
+        uses: INFOTAIN/trm-pipelines-templates/actions/publish-release-confluence@main
+        with:
+          username: ${{ secrets.TECHNICAL_USER_USERNAME }}
+          password: ${{ secrets.TECHNICAL_USER_PASSWORD }}
+          hub: ${{ steps.utils.outputs.hub }}
+          env: ${{ steps.utils.outputs.env }}
+          page-title: ${{ steps.utils.outputs.confluence_page_release_version_board_page_title }}
+          parent-id: ${{ steps.utils.outputs.confluence_parent_page_id }}
+          service-name: ${{ steps.utils.outputs.product_key }}
+          release-version: ${{ steps.utils.outputs.git_ref }}

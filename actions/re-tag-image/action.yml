@@ -1,0 +1,109 @@
+name: Re Tag Image
+description: Re tag the ecr image. Fails if tag does not exist.
+inputs:
+  aws-region:
+    description: "AWS Region Row"
+    required: true
+  aws-role:
+    description: "The role to access the ECR RoW."
+    required: true
+  aws-region-cn:
+    description: "AWS Region CN"
+    required: true
+  aws-role-cn:
+    description: "The role to access the ECR CN."
+    required: true
+  repo-token:
+    description: 'Token to use when "git checkout" terraform'
+    required: true
+  service-name:
+    description: 'Name of the service'
+    required: true
+  tag-mutability:
+    description: 'Immutable Tags Password. One of the following: IMMUTABLE / MUTABLE'
+    default: "IMMUTABLE"
+    required: false
+  source-tag:
+    description: "The source tag"
+    required: true
+  new-tag:
+    description: "The new tag"
+    required: true
+  dry-run:
+    description: "Dry run test"
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Setup ECR
+      id: ecr-row
+      uses: INFOTAIN/trm-pipelines-templates/actions/setup-ecr@main
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        aws-role: ${{ inputs.aws-role }}
+        repo-token: ${{ inputs.repo-token }}
+        service-name: ${{ inputs.service-name }}
+        approvers: ${{ inputs.approvers }}
+        tag-mutability: ${{ inputs.tag-mutability }}
+        dry-run: ${{ inputs.dry-run }}
+
+    - name: Check source image tag
+      shell: bash
+      run: |
+        IMAGE_META="$(aws ecr batch-get-image --repository-name=${{ inputs.service-name }} --image-ids=imageTag=${{ inputs.source-tag }} --query 'images[].imageId.imageTag' --output text --region ${{ inputs.aws-region }})"
+        if [[ "${{ inputs.source-tag }}" == "${IMAGE_META}" ]]; then
+          exit 0;
+        else
+          echo "The source tag ${{ inputs.source-tag }} does not exists."
+          exit 1;
+        fi
+    - name: Check new image tag
+      shell: bash
+      run: |
+        IMAGE_META="$(aws ecr batch-get-image --repository-name=${{ inputs.service-name }} --image-ids=imageTag=${{ inputs.new-tag }} --query 'images[].imageId.imageTag' --output text --region ${{ inputs.aws-region }})"
+        if [[ "${{ inputs.new-tag }}" == "${IMAGE_META}" ]]; then
+          echo "The new tag ${{ inputs.new-tag }} already exists. Check if the bump is correct."
+          exit 1;
+        else
+          exit 0;
+        fi
+
+    - name: Re tag an image
+      id: re-tag
+      shell: bash
+      run: |
+        SOURCE_TAG=${{ inputs.source-tag }}
+        NEW_TAG=${{ inputs.new-tag }}
+        IMAGE_MANIFEST=$(aws ecr batch-get-image --repository-name=${{ inputs.service-name }} --region ${{ inputs.aws-region }} \
+          --image-ids imageTag="${SOURCE_TAG}" --query 'images[].imageManifest' --output text)
+
+        aws ecr put-image --repository-name=${{ inputs.service-name }} --region ${{ inputs.aws-region }} \
+          --image-tag "${NEW_TAG}" --image-manifest "${IMAGE_MANIFEST}"
+
+        DELETE_TAG=$(aws ecr batch-delete-image --repository-name ${{ env.ecr_name }} --image-ids imageTag=${SOURCE_TAG})
+        echo "The image tag ${SOURCE_TAG} is re tagged to ${NEW_TAG} from ecr ${{ env.ecr_name }}"
+        
+        IMAGE="${{steps.ecr-row.outputs.ecr_repository_url}}/${{ inputs.service-name }}:${NEW_TAG}"
+        docker pull ${IMAGE}
+        
+        echo "image=${IMAGE}" >> $GITHUB_OUTPUT
+
+    - name: Setup ECR - CN
+      uses: INFOTAIN/trm-pipelines-templates/actions/setup-ecr@main
+      id: ecr-cn
+      with:
+        aws-region: ${{ inputs.aws-region-cn }}
+        aws-role: ${{ inputs.aws-role-cn }}
+        repo-token: ${{ inputs.repo-token }}
+        service-name: ${{ inputs.service-name }}
+        tag-mutability: ${{ inputs.tag-mutability }}
+        dry-run: ${{ inputs.dry-run }}
+
+    - name: Publish - CN
+      shell: bash
+      run: |
+        NEW_TAG=${{ inputs.new-tag }}
+        IMAGE_CN="${{steps.ecr-cn.outputs.ecr_repository_url}}/${{ inputs.service-name }}:${NEW_TAG}"
+        docker tag ${{steps.re-tag.outputs.image}} ${IMAGE_CN}
+        docker push ${IMAGE_CN}

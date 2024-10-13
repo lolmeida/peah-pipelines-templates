@@ -1,0 +1,16 @@
+target/
+.project
+.settings
+**/*.DS_Store
+
+### IntelliJ ###
+.idea/
+*.iml
+/.apt_generated/
+/.apt_generated_tests/
+
+**/*/node_modules
+**/*/yarn-error.log
+**/*/yarn.lock
+**/*/coverage
+**/.terraform

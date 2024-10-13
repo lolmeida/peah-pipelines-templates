@@ -1,0 +1,83 @@
+name: Helm Uninstall
+description: "Helm Uninstall"
+branding:
+  icon: 'trash'
+  color: 'orange'
+inputs:
+  hub:
+    description: "The hub"
+    required: true
+  environment:
+    description: "The env."
+    required: true
+  dry-run:
+    description: "Dry Run test"
+    required: false
+    default: "false"
+  aws-region:
+    description: "AWS Region"
+    required: true
+  aws-role:
+    description: "The role to access the eks."
+    required: true
+  aws-cicd-role:
+    description: "The role to assume the eks."
+    required: true
+  service:
+    description: 'The service name'
+    required: true
+  timeout:
+    description: 'The helm upgrade timeout'
+    required: false
+    default: "15m"
+  namespace:
+    description: "The eks namespace"
+    required: false
+  helm-vars:
+    description: 'The List of helm vars'
+    required: false
+  eks-name:
+    description: "The eks name"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Assume CICD Role
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-cicd-role }}
+        role-skip-session-tagging: true
+        role-chaining: false
+
+    - name: Assume Kubernetes Role
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-role }}
+        role-skip-session-tagging: true
+        role-chaining: true
+
+    - name: Helm details
+      run: |
+        aws sts get-caller-identity
+        echo "Inputs: ${{ toJSON(inputs) }}"
+      shell: bash
+
+    - name: Update Kubeconfig
+      run: aws eks update-kubeconfig --name ${{inputs.eks-name}} --region ${{inputs.aws-region}} --alias ${{inputs.hub}}-${{inputs.environment}}
+      shell: bash
+
+    - name: Prepare
+      id: prepare
+      run: python ${{ github.action_path }}/translate-helm-vars.py
+      shell: bash
+      env:
+        INPUT_HELM_VARS: ${{ inputs.helm-vars }}
+
+    - name: Run Helm
+      shell: bash
+      run: >
+        UNINSTALL=$(helm uninstall ${{ inputs.dry-run == 'true' && '--dry-run' || ''}} --timeout ${{inputs.timeout}} ${{ inputs.service }} --namespace ${{inputs.namespace}} ${{ steps.prepare.outputs.HELM_VARS }})
+        echo "Canary is uninstalled: ${UNINSTALL}"

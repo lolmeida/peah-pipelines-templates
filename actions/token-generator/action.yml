@@ -1,0 +1,31 @@
+name: Generate temporary JWT Token
+description: "Generate temporary JWT Token for the smoke tests"
+inputs:
+  private-key:
+    description: "The private key"
+  subject:
+    description: "The subject."
+  ttl-in-seconds:
+    description: "The ttl in seconds."
+  groups:
+    description: 'The groups'
+    required: true
+outputs:
+  token:
+    description: 'The generated token.'
+    value: ${{ steps.generate.outputs.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      run: |
+        pip install jwcrypto
+      shell: bash
+    - name: Generate token
+      id: generate
+      run: |
+        TOKEN=$(python ${{ github.action_path }}/generate_jwt.py -k ${{ inputs.private-key }} -s ${{ inputs.subject }} -t ${{ inputs.ttl-in-seconds }} -g ${{ inputs.groups }})
+        echo "Token: ${TOKEN}"
+        echo "token=$TOKEN" >> $GITHUB_OUTPUT
+      shell: bash

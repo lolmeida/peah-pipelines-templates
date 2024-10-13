@@ -1,0 +1,264 @@
+name: Code Analysis
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "Java version to use"
+        required: false
+        type: string
+        default: 17
+      java-distribution:
+        description: "Java distribution to use"
+        required: false
+        type: string
+        default: corretto
+      pre-test-config:
+        description: "Commands to run before the tests"
+        required: false
+        type: string
+      maven-test-command:
+        description: "Maven test command"
+        type: string
+        default: clean test
+      maven-clean-command:
+        description: "Maven clean command"
+        type: string
+        required: false
+        default: "clean -Dmaven.artifact.threads=10 -Dstyle.color=always"
+      working-directory:
+        description: "Directory to run the tests on"
+        required: false
+        type: string
+        default: .
+      runner-label:
+        description: "Runner label to request"
+        required: false
+        type: string
+        default: "cawe-linux-x64-compute-large"
+      settings-server-id:
+        description: "ID of the distributionManagement repository in the pom.xml file."
+        required: false
+        type: string
+      overwrite-settings:
+        description: "Overwrites the settings.xml."
+        default: false
+        required: false
+        type: string
+      sonar-host-url:
+        description: "Sonar Host URL"
+        required: false
+        type: string
+        default: "https://connectedcicd.bmwgroup.net/cicdsonar/"
+      queries-to-run:
+        description: "List of queries to run"
+        required: false
+        type: string
+        default: "security-extended"
+
+    secrets:
+      settings-server-username:
+        description: "Environment variable name for the username for NEXUS authentication to the repository."
+        required: false
+      settings-server-password:
+        description: "Environment variable name for the password for NEXUS authentication to the repository."
+        required: false
+
+env:
+  SERVER_USERNAME: ${{ secrets.settings-server-username }}
+  SERVER_PASSWORD: ${{ secrets.settings-server-password }}
+
+jobs:
+  static-analysis:
+    name: Run
+    runs-on: ${{ inputs.runner-label }}
+    strategy:
+      matrix:
+        args: # Static analysis
+          - description: "Maven clean"
+            command: "clean"
+          - description: "Checkstyle"
+            command: "clean verify -DskipDCs -DskipUTs -DskipFTs"
+          # Unit tests and SonarQube
+          - description: "Unit tests and SonarQube"
+            command: "test -DskipDCs -Dcheckstyle.skip -DskipFTs && ./mvnw sonar:sonar -Dsonar.host.url=${{ inputs.sonar-host-url }}"
+          # Functional test
+          - description: "Functional test"
+            command: "clean verify -DskipDCs -Dcheckstyle.skip -DskipUTs -Dquarkus.profile=test"
+    env:
+      SONAR_TOKEN: ${{ secrets.sonar-token }}
+    outputs:
+      java-version: ${{ inputs.java-version }}
+      java-distribution: ${{ inputs.java-distribution }}
+    steps:
+      - name: Validate inputs
+        id: validate_inputs
+        uses: orbit-actions/java-workflows/.github/actions/validate-build-maven-inputs@v1
+        continue-on-error: false
+        with:
+          java-version: ${{ inputs.java-version }}
+          java-distribution: ${{ inputs.java-distribution }}
+
+      - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        id: setup_java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.java-distribution }}
+          java-version: ${{ inputs.java-version }}
+          check-latest: false
+          cache: maven
+          overwrite-settings: ${{ inputs.overwrite-settings }}
+          server-id: ${{ inputs.settings-server-id }}
+          server-username: SERVER_USERNAME
+          server-password: SERVER_PASSWORD
+
+      - name: Download BMW certificates from PKI
+        id: download_certificates
+        run: wget http://sslcrl.bmwgroup.com/pki/BMW_Trusted_Certificates_Latest.jks
+
+      - name: Import Certificates to Java Keystore and Remove Certificate File
+        id: import_certificates
+        run: |
+          $JAVA_HOME/bin/keytool -importkeystore -srckeystore "BMW_Trusted_Certificates_Latest.jks" -destkeystore $JAVA_HOME/lib/security/cacerts -srcstoretype JKS -deststoretype JKS -srcstorepass changeit -deststorepass changeit -v && \
+          rm BMW_Trusted_Certificates_Latest.jks
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Pre-test configuration
+        id: pre_test_configuration
+        if: inputs.pre-test-config != ''
+        run: ${{ inputs.pre-test-config }}
+
+      - name: ${{ matrix.args.description }}
+        id: maven_matrix
+        working-directory: ${{ inputs.working-directory }}
+        run: ./mvnw ${{ matrix.args.command }} -Dstyle.color=always
+
+      - name: Metrics collector
+        id: metrics_collector
+        if: always()
+        uses: orbit-actions/metrics-collector@v1
+
+  codeql-maven:
+    runs-on: ${{ inputs.runner-label }}
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    steps:
+      - name: Validate inputs
+        id: validate_inputs
+        uses: orbit-actions/java-workflows/.github/actions/validate-build-maven-inputs@v1
+        continue-on-error: false
+        with:
+          java-version: ${{ inputs.java-version }}
+          java-distribution: ${{ inputs.java-distribution }}
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        id: setup_java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.java-distribution }}
+          java-version: ${{ inputs.java-version }}
+          check-latest: false
+          cache: maven
+          overwrite-settings: ${{ inputs.overwrite-settings }}
+          server-id: ${{ inputs.settings-server-id }}
+          server-username: SERVER_USERNAME
+          server-password: SERVER_PASSWORD
+
+      - name: Download BMW certificates from PKI
+        id: download_certificates
+        run: wget http://sslcrl.bmwgroup.com/pki/BMW_Trusted_Certificates_Latest.jks
+
+      - name: Import Certificates to Java Keystore and Remove Certificate File
+        id: import_certificates
+        run: |
+          $JAVA_HOME/bin/keytool -importkeystore -srckeystore "BMW_Trusted_Certificates_Latest.jks" -destkeystore $JAVA_HOME/lib/security/cacerts -srcstoretype JKS -deststoretype JKS -srcstorepass changeit -deststorepass changeit -v && \
+          rm BMW_Trusted_Certificates_Latest.jks
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Pre-analysis configuration
+        id: pre_analysis_configuration
+        if: inputs.pre-analysis-config != ''
+        run: ${{ inputs.pre-analysis-config }}
+
+      - name: Initialize CodeQL
+        id: initialize_codeql
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+          build-mode: manual
+          source-root: src/main/java
+          queries: ${{ inputs.queries-to-run }}
+          db-location: /etc/gha/_work/_temp/codeql_databases/java
+          # java/unknown-javadoc-parameter causes false positives with Java records and lombok
+          config: |
+            query-filters:
+              - exclude:
+                  id: java/unknown-javadoc-parameter
+
+      - name: Build CodeQL Database
+        run: |
+          ./mvnw clean package -DskipTests -Dmaven.test.skip=true -DskipUTs -DskipFTs -DskipPTs -DskipDCs
+
+      - name: Perform CodeQL Analysis
+        id: perform_codeql_analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java"
+
+      - name: Metrics collector
+        id: metrics_collector
+        if: always()
+        uses: orbit-actions/metrics-collector@v1
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ${{ inputs.runner-label }}
+    steps:
+      - name: Checkout Repository
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        id: "dependency_review"
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: low
+          comment-summary-in-pr: on-failure
+          fail-on-scopes: runtime, development, unknown
+          base-ref: main
+          head-ref: ${{ github.ref }}
+
+  # Check previous jobs
+  check-jobs:
+    name: All Jobs Checked
+    runs-on: ${{ inputs.runner-label }}
+    needs: [ static-analysis, codeql-maven, dependency-review ]
+    steps:
+      - name: Passed
+        id: passed
+        run: echo 'All previous job passed'

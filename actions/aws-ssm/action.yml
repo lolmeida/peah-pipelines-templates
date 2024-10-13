@@ -1,0 +1,18 @@
+name: 'AWS SSM GitHub Action'
+author: 'TRM'
+description: 'GitHub action for retrieving secrets from AWS SSM'
+branding:
+  icon: 'cloud'
+  color: 'orange'
+inputs:
+  parameters:
+    description: 'One or more parameters store names.'
+    required: true
+  with-decryption:
+    description: '(Optional) If true, parameter store value will be decrypted.'
+    required: false
+    default: 'true'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+  post: 'dist/cleanup/index.js'

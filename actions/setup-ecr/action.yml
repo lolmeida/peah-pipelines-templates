@@ -1,0 +1,85 @@
+name: Setup ECR
+description: Setup ECR
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+  aws-role:
+    description: "The role to access the ECR."
+    required: true
+  repo-token:
+    description: 'Token to use when "git checkout" terraform'
+    required: true
+  service-name:
+    description: 'Name of the service'
+    required: true
+  tag-mutability:
+    description: 'Immutable Tags Password. One of the following: IMMUTABLE / MUTABLE'
+    default: "IMMUTABLE"
+    required: false
+  approvers:
+    description: "The list of approvers"
+    required: false
+    default: "no-user"
+  dry-run:
+    description: "Dry Run test"
+    required: false
+    default: "false"
+  release-candidate-prefix:
+    description: "The release candidate prefix"
+    required: false
+    default: "rc"
+  hotfix-prefix:
+    description: "The hotfix prefix"
+    required: false
+    default: "hotfix"
+outputs:
+  ecr_repository_url:
+    description: 'The ecr repository url.'
+    value: ${{ steps.output.outputs.ecr_repository_url }}
+  ecr_registry_id:
+    description: 'The ecr registry id.'
+    value: ${{ steps.output.outputs.ecr_registry_id }}
+  ecr_name:
+    description: 'The ecr name.'
+    value: ${{ steps.output.outputs.ecr_name }}
+runs:
+  using: composite
+  steps:
+    - name: Assume ECR Role
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-role }}
+
+    - name: Config ECR Repo
+      uses: INFOTAIN/trm-pipelines-templates/actions/run-terraform@main
+      with:
+        id: ecr
+        aws-region: ${{ inputs.aws-region }}
+        repo: 'INFOTAIN/trm-pipelines-templates'
+        approvers: ${{ inputs.approvers }}
+        repo-ref: 'main'
+        repo-token: ${{ inputs.repo-token }}
+        working-directory: 'terraform/ecr'
+        apply-changes: true
+        plan-args: >-
+          -lock=false -var aws_region=${{ inputs.aws-region }} -var service_name=${{ inputs.service-name }}  
+          -var release_candidate_prefix=${{ inputs.release-candidate-prefix }} -var hotfix_prefix=${{ inputs.hotfix-prefix }} 
+          -var tag_mutability=${{ inputs.tag-mutability }} -var-file="variables/${{ inputs.aws-region }}/variables.tfvars"
+        #todo: put it in input with default value, and delete current ecrs
+        state-bucket: ${{ inputs.aws-region == 'cn-north-1' && 'orbit-cn-north-1-ices-e2e-terraform-backend-bucket'  || 'ices-trm-infra-tfstate-v1' }}
+        state-bucket-key: ${{ format('{0}{1}-ecr.tfstate', (inputs.aws-region == 'cn-north-1' && 'ices.' || ''), inputs.service-name) }}
+        output-variables: 'ecr_repository_url,ecr_registry_id,ecr_name'
+        dry-run: ${{ inputs.dry-run }}
+
+    - name: ECR Login
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Print ECR Info
+      id: output
+      run: |
+        echo "ecr_repository_url=${{ env.ecr_repository_url }}" >> $GITHUB_OUTPUT
+        echo "ecr_registry_id=${{ env.ecr_registry_id }}" >> $GITHUB_OUTPUT
+        echo "ecr_name=${{ env.ecr_name }}" >> $GITHUB_OUTPUT
+      shell: bash

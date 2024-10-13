@@ -1,0 +1,27 @@
+name: Temporary Action to Assume iis-ices-kubernetes-developer from the CI Bot.
+description: Temporary Action to Assume iis-ices-kubernetes-developer from the CI Bot.
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+  account-id:
+    description: "AWS Account ID"
+    required: true
+  arn-prefix:
+    description: "AWS ARN Prefix (aws / aws-cn)"
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Get CI Bot Access Key and Secret Key
+      uses: aws-actions/aws-secretsmanager-get-secrets@v2
+      with:
+        parse-json-secrets: true
+        secret-ids: |
+          CREDS, ices/trm/ci-bot
+    - name: Assume iis-ices-kubernetes-developer through CI Bot
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: arn:${{ inputs.arn-prefix }}:iam::${{ inputs.account-id }}:role/cicd-technical-user-iis-ices
+        role-skip-session-tagging: true

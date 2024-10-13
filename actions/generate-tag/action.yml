@@ -1,0 +1,40 @@
+name: Generate TAG
+description: Generate TAG for git and ECR
+inputs:
+  git-ref:
+    required: true
+    description: "The git ref (tag or branch)."
+  date-hash-format:
+    required: false
+    description: "If true, date-hash format will be used. If false, branch-hash will be used."
+    default: "false"
+  type-of-release:
+    required: false
+    description: "Type of release."
+    default: "rc"
+outputs:
+  tag:
+    description: "The tag"
+    value: ${{ steps.tag.outputs.tag }}
+runs:
+  using: composite
+  steps:
+    - name: Get Tag
+      id: tag
+      shell: bash
+      run: |
+        SEMVER_REGEX='^[0-9]+\.[0-9]+\.[0-9]+$'
+        
+        NORMALIZED_BRANCH_NAME=$(echo ${{ inputs.git-ref }} | sed 's/\/\|_/-/g' | tr -d '\n')
+        SHORT_COMMIT=$(echo $(git rev-parse --short "$GITHUB_SHA") | cut -c1-7 | tr -d '\n')
+        
+        if [[ $NORMALIZED_BRANCH_NAME =~ $SEMVER_REGEX ]]; then
+          TAG="${NORMALIZED_BRANCH_NAME}"
+        elif [[ "${{ inputs.date-hash-format }}" == "true" ]]; then
+          TAG="${{ inputs.type-of-release }}-$(date '+%Y-%m-%d-%H-%M-%S')_${SHORT_COMMIT}"
+        else
+          TAG="${NORMALIZED_BRANCH_NAME}-${SHORT_COMMIT}"
+        fi
+        
+        echo "Tag is: ${TAG}"
+        echo "tag=$TAG" >> $GITHUB_OUTPUT

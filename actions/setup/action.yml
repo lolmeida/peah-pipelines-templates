@@ -1,0 +1,108 @@
+name: Setup CI
+description: Setup CI Runner
+inputs:
+  java-version:
+    description: "Java version to use"
+    required: false
+    default: "17"
+  java-distribution:
+    description: "Java distribution to use"
+    required: false
+    default: "corretto"
+  python-version:
+    description: "Python version to use"
+    required: false
+    default: "3.10"
+  node-version:
+    description: "Node version to use"
+    required: false
+    default: "20"
+  helm-version:
+    description: "Helm version to use"
+    required: false
+    default: "v3.15.4"
+  maven-version:
+    description: "Maven version to use"
+    required: false
+    default: "3.8.8"
+  overwrite-settings:
+    description: "Overwrites the settings.xml."
+    default: "false"
+    required: false
+  settings-server-id:
+    description: "ID of the distributionManagement repository in the pom.xml file."
+    required: false
+  hub:
+    description: "The hub."
+    required: false
+  env:
+    description: "The Env"
+    required: false
+  jq-version:
+    required: false
+    description: "Version of jq to install"
+    default: "1.7"
+  aws-arn:
+    required: true
+    description: "the base arn"
+  aws-region:
+    required: true
+    description: "The aws region"
+    default: "eu-central-1"
+outputs:
+  aws-access-key-id:
+    description: "Access Key for role assumed"
+    value: ${{ steps.assume-trm.outputs.aws-access-key-id }}
+  aws-secret-access-key:
+    description: "Secret Access Key for role assumed"
+    value: ${{ steps.assume-trm.outputs.aws-secret-access-key }}
+  aws-session-token:
+    description: "Session Token for role assumed"
+    value: ${{ steps.assume-trm.outputs.aws-session-token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Assume trm Role
+      uses: aws-actions/configure-aws-credentials@v4
+      id: assume-trm
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-arn }}
+        output-credentials: true
+
+    - name: Print assumed role
+      shell: bash
+      run: aws sts get-caller-identity
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Set up Helm
+      uses: Azure/setup-helm@v3
+      with:
+        version: ${{ inputs.helm-version }}
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ inputs.java-distribution }}
+        java-version: ${{ inputs.java-version }}
+        check-latest: false
+        cache: maven
+        overwrite-settings: ${{ inputs.overwrite-settings }}
+        server-id: ${{ inputs.settings-server-id }}
+        server-username: SERVER_USERNAME
+        server-password: SERVER_PASSWORD
+
+    - name: Setup jq
+      uses: dcarbone/install-jq-action@v2
+      with:
+        version: ${{ inputs.jq-version }}

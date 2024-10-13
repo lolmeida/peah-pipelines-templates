@@ -1,0 +1,41 @@
+name: Publish release notes confluence
+description: Publish release notes confluence
+inputs:
+  username:
+    description: "The confluence username"
+    required: true
+  password:
+    description: "The confluence password"
+    required: true
+  page-title:
+    description: "The page title"
+    required: true
+  parent-id:
+    description: "The parent id"
+    required: true
+  release-data:
+    description: "The release data (json with release and timestamp)"
+    required: true
+  jira-issues:
+    description: "The jira issues (json array with id and summary)"
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Generate the release nodes
+      id: generate
+      shell: bash
+      run: >
+        python -u ${{ github.action_path }}/generate.py
+        --release="${{ inputs.release-data }}"
+        --jira-issues="${{ inputs.jira-issues }}"
+
+    - name: Publish
+      uses: INFOTAIN/trm-pipelines-templates/actions/confluence@main
+      with:
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+        page-title: ${{ inputs.page-title }}
+        parent-id: ${{ inputs.parent-id }}
+        action: "PREPEND"
+        body: ${{ steps.generate.outputs.release_notes }}

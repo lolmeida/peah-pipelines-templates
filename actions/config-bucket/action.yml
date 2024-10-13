@@ -1,0 +1,16 @@
+name: Config Bucket
+description: Configure AWS Bucket
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+  bucket:
+    description: "S3 bucket"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Config Bucket
+      shell: bash
+      run: python ${{ github.action_path }}/config_bucket.py --aws-region ${{ inputs.aws-region }} --bucket ${{ inputs.bucket }}

@@ -1,0 +1,70 @@
+name: Setup MemoryDB
+description: Setup a MemoryDB Cluster
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+  hub:
+    description: "Hub"
+    required: true
+  repo-token:
+    description: 'Token to use when "git checkout" terraform.'
+    required: true
+  environment:
+    description: 'Environment (One of the following: test/integration/e2e/production)'
+    required: true
+  memorydb-username:
+    description: 'MemoryDB Username'
+    required: true
+  memorydb-password:
+    description: 'MemoryDB Password'
+    required: true
+  snapshot-retention-limit:
+    description: 'How long to store snapshots'
+    required: true
+  approvers:
+    description: "The list of approvers"
+    required: true
+  dry-run:
+    description: "Dry Run test"
+    required: false
+    default: "false"
+  app-id:
+    description: "The app-id"
+    required: false
+    default: "APP-28745"
+  ms-id:
+    description: "The ms-id"
+    required: false
+    default: ""
+  compass-id:
+    description: "The compass id"
+    required: false
+    default: "sep-memorydb"
+outputs:
+  cluster_endpoint_address:
+    description: 'The cluster endpoint address.'
+    value: ${{ steps.memory-db.outputs.cluster_endpoint_address }}
+runs:
+  using: composite
+  steps:
+    - name: MemoryDB Terraform
+      id: memory-db
+      uses: INFOTAIN/trm-pipelines-templates/actions/run-terraform@main
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        repo: 'INFOTAIN/trm-pipelines-templates'
+        repo-ref: 'main'
+        repo-token: ${{ inputs.repo-token }}
+        working-directory: 'terraform/memorydb'
+        approvers: ${{ inputs.approvers }}
+        plan-args: >-
+          -lock=false -var aws_region=${{ inputs.aws-region }} -var environment=${{ inputs.environment }}
+          -var team=ices-sep -var user_group_name=${{ inputs.memorydb-username }}
+          -var authentication_pass=${{ inputs.memorydb-password }} -var snapshot_retention_limit=${{ inputs.snapshot-retention-limit }} 
+          -var create_s3_backup=true -var sns_users=therollingmodes -var app_id=${{ inputs.app-id }} -var ms_id=${{ inputs.ms-id }}
+          -var compass_id=${{ inputs.compass-id }} -var-file="variables/memorydb-${{ inputs.environment }}-${{ inputs.aws-region }}.tfvars"
+        state-bucket: 'ices-sep-tf-state-${{ inputs.environment }}-${{ inputs.aws-region }}'
+        state-bucket-key: 'ices-sep.memorydb.tfstate-${{ inputs.environment }}-cluster-ices-sep-${{ inputs.environment }}-${{ inputs.hub }}'
+        output-variables: 'cluster_endpoint_address'
+        dry-run: ${{ inputs.dry-run }}

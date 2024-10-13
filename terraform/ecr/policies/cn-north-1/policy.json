@@ -1,0 +1,31 @@
+{
+    "Version": "2008-10-17",
+    "Statement": [
+      {
+        "Sid": "orbit non prod pull access",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws-cn:iam::071788031674:root"
+        },
+        "Action": [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:ListImages"
+        ]
+      },
+      {
+        "Sid": "orbit prod pull access",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws-cn:iam::178588765489:root"
+        },
+        "Action": [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:ListImages"
+        ]
+      }
+    ]
+  }

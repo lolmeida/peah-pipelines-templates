@@ -1,0 +1,28 @@
+name: Publish team notification
+description: Setup ECR
+inputs:
+  body-json:
+    description: "The body json"
+    required: true
+
+  workflow-urls:
+    description: "The teams workflows url"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Publish"
+      shell: bash
+      run: |
+        URLS="${{ inputs.workflow-urls }}"
+        
+        for url in ${URLS//,/ }; do
+            curl \
+              --header "Content-Type: application/json" \
+              --request POST \
+              --data '${{inputs.body-json}}' \
+              "${url}"
+        done
+
+        

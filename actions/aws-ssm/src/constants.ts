@@ -1,0 +1,1 @@
+export const CLEANUP_NAME = 'SSM_LIST_CLEAN_UP';

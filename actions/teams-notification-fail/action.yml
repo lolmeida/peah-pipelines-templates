@@ -1,0 +1,184 @@
+name: Publish team notification
+description: Publish team notification by workflows
+inputs:
+
+  hub:
+    description: "The hub"
+    required: true
+
+  env:
+    description: "The env"
+    required: true
+
+  dry-run:
+    description: "if the dry run is active or not"
+    required: true
+
+  triggered-by:
+    description: "Trigger by (user or github)."
+    required: true
+
+  steps-context:
+    description: "The context of the steps"
+    required: true
+
+  workflow-urls:
+    description: "The teams workflow"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Setup jq"
+      id: setup-jq
+      uses: dcarbone/install-jq-action@v2
+      with:
+        version: "1.7"
+
+    - name: "Head Commit Info"
+      id: head_commit_info
+      shell: bash
+      run: |
+        echo "user=$(git log -n 1 --pretty=format:%an)" >> "$GITHUB_OUTPUT"
+        echo "message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
+
+    - name: "Check fail steps"
+      id: check
+      shell: bash
+      run: |
+        STEPS_JSON_DATA='${{ inputs.steps-context }}'
+        FAIL_STEPS_IDS=$(jq '. | with_entries(select(.value.conclusion == "failure")) | keys | join(", ")' <<< "$STEPS_JSON_DATA")
+        echo "Result $FAIL_STEPS_IDS"
+        echo steps=$FAIL_STEPS_IDS >> $GITHUB_OUTPUT
+
+    - name: "Notify teams channel"
+      uses: INFOTAIN/trm-pipelines-templates/actions/teams-notification@main
+      with:
+        body-json: "{
+          \"type\": \"message\",
+          \"attachments\": [
+            {
+              \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+              \"content\": {
+                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",
+                \"type\": \"AdaptiveCard\",
+                \"version\": \"1.4\",
+                \"body\": [
+                  {
+                    \"type\": \"Container\",
+                    \"items\": [
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"BUILD FAILS\",
+                        \"weight\": \"Lighter\",
+                        \"size\": \"ExtraLarge\",
+                        \"color\": \"Attention\",
+                        \"fontType\": \"Default\",
+                        \"isSubtle\": true,
+                        \"style\": \"heading\"
+                      },
+                      {
+                        \"type\": \"ColumnSet\",
+                        \"columns\": [
+                          {
+                            \"type\": \"Column\",
+                            \"width\": \"auto\",
+                            \"items\": [
+                              {
+                                \"type\": \"Image\",
+                                \"url\": \"https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png\",
+                                \"size\": \"small\",
+                                \"style\": \"person\"
+                              }
+                            ]
+                          },
+                          {
+                            \"type\": \"Column\",
+                            \"width\": \"stretch\",
+                            \"items\": [
+                              {
+                                \"type\": \"TextBlock\",
+                                \"text\": \"Github Actions\",
+                                \"weight\": \"bolder\",
+                                \"wrap\": true
+                              },
+                              {
+                                \"type\": \"TextBlock\",
+                                \"spacing\": \"none\",
+                                \"text\": \"Created \",
+                                \"isSubtle\": true,
+                                \"wrap\": true
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    \"type\": \"Container\",
+                    \"items\": [
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"Author ${{ steps.head_commit_info.outputs.user }}.\",
+                        \"weight\": \"bolder\",
+                        \"wrap\": true
+                      },
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"Commit message - ${{ steps.head_commit_info.outputs.message }}.\",
+                        \"wrap\": true
+                      },
+                      {
+                        \"type\": \"FactSet\",
+                        \"facts\": [
+                          {
+                            \"title\": \"Triggered by:\",
+                            \"value\": \"${{ inputs.triggered-by }} - ${{ github.triggering_actor || github.actor }}\"
+                          },
+                          {
+                            \"title\": \"Step IDs Fail:\",
+                            \"value\": ${{ steps.check.outputs.steps }}
+                          },
+                          {
+                            \"title\": \"Repository:\",
+                            \"value\": \"${{ github.repository }}\"
+                          },
+                          {
+                            \"title\": \"Ref:\",
+                            \"value\": \"${{ github.ref_name }}\"
+                          },
+                          {
+                            \"title\": \"Hub:\",
+                            \"value\": \"${{ inputs.hub }}\"
+                          },
+                          {
+                            \"title\": \"Env:\",
+                            \"value\": \"${{ inputs.env }}\"
+                          },
+                          {
+                            \"title\": \"Dry Run:\",
+                            \"value\": \"${{ inputs.dry-run }}\"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                \"actions\": [
+                  {
+                    \"type\": \"Action.OpenUrl\",
+                    \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+                    \"title\": \"Check details\"
+                  },
+                  {
+                    \"type\": \"Action.OpenUrl\",
+                    \"url\": \"${{ github.server_url }}/${{ github.repository }}\",
+                    \"title\": \"Repository\"
+                  }
+                ]
+              }
+            }
+          ]
+        }"
+        workflow-urls: ${{ inputs.workflow-urls }}

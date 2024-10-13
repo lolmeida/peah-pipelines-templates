@@ -1,0 +1,159 @@
+name: Publish team notification
+description: Publish team notification by workflows
+inputs:
+  token:
+    description: "The github token"
+  hub:
+    description: "The hub"
+    required: true
+  env:
+    description: "The env"
+    required: true
+  release:
+    description: "The release version"
+    required: true
+  service:
+    description: "The service"
+    required: true
+  workflow-urls:
+    description: "The teams workflow"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Get release by tag.
+      id: release
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          let result = "No release notes"
+          try {
+            const data_req={
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: '${{ inputs.release }}'
+            };          
+            const {data} = await github.rest.repos.getReleaseByTag(data_req);
+            result = data.body.replaceAll("\n", "\r\r")
+          } catch (error) {
+            console.warn(error);
+          }
+          return result;
+        result-encoding: string
+
+    - name: "Notify teams channel"
+      uses: INFOTAIN/trm-pipelines-templates/actions/teams-notification@main
+      with:
+        body-json: "{
+          \"type\": \"message\",
+          \"attachments\": [
+            {
+              \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+              \"content\": {
+                \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",
+                \"type\": \"AdaptiveCard\",
+                \"version\": \"1.4\",
+                \"body\": [
+                  {
+                    \"type\": \"Container\",
+                    \"items\": [
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"Deploy successfully \\\"${{ inputs.service }}\\\".\",
+                        \"weight\": \"Lighter\",
+                        \"size\": \"ExtraLarge\",
+                        \"color\": \"Good\",
+                        \"fontType\": \"Default\",
+                        \"isSubtle\": true,
+                        \"style\": \"heading\",
+                        \"wrap\": true
+                      },
+                      {
+                        \"type\": \"ColumnSet\",
+                        \"columns\": [
+                          {
+                            \"type\": \"Column\",
+                            \"width\": \"auto\",
+                            \"items\": [
+                              {
+                                \"type\": \"Image\",
+                                \"url\": \"https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png\",
+                                \"size\": \"small\",
+                                \"style\": \"person\"
+                              }
+                            ]
+                          },
+                          {
+                            \"type\": \"Column\",
+                            \"width\": \"stretch\",
+                            \"items\": [
+                              {
+                                \"type\": \"TextBlock\",
+                                \"text\": \"Github Actions\",
+                                \"weight\": \"bolder\",
+                                \"wrap\": true
+                              },
+                              {
+                                \"type\": \"TextBlock\",
+                                \"spacing\": \"none\",
+                                \"text\": \"Automatic Notification\",
+                                \"isSubtle\": true,
+                                \"wrap\": true
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    \"type\": \"Container\",
+                    \"items\": [
+                      {
+                        \"type\": \"FactSet\",
+                        \"facts\": [
+                          {
+                            \"title\": \"Hub:\",
+                            \"value\": \"${{ inputs.hub }}\"
+                          },
+                          {
+                            \"title\": \"Env:\",
+                            \"value\": \"${{ inputs.env }}\"
+                          },
+                          {
+                            \"title\": \"Release:\",
+                            \"value\": \"${{ inputs.release  }}\"
+                          }
+                        ]
+                      },
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"Release notes:\",
+                        \"wrap\": true,
+                        \"color\": \"Good\",
+                        \"style\": \"heading\",
+                        \"size\": \"Large\",
+                        \"weight\": \"Lighter\"
+                      },
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"${{ steps.release.outputs.result }}\",
+                        \"wrap\": true
+                      }
+                    ]
+                  }
+                ],
+                \"actions\": [
+                  {
+                    \"type\": \"Action.OpenUrl\",
+                    \"url\": \"${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.release }}\",
+                    \"title\": \"Check release notes on github\"
+                  }
+                ]
+              }
+            }
+          ]
+        }"
+        workflow-urls: ${{ inputs.workflow-urls }}

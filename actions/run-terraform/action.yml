@@ -1,0 +1,178 @@
+name: Terraform
+description: Init, Plan and Apply Terraform Configuration
+inputs:
+  tf-version:
+    description: "Terraform Version"
+    required: false
+    default: "1.8.2"
+  dry-run:
+    description: "Dry Run test"
+    required: false
+    default: "false"
+  approvers:
+    description: "The list of approvers"
+    required: true
+  node-version:
+    description: "NodeJS Version"
+    required: false
+    default: "v20"
+  aws-region:
+    description: "AWS Region"
+    required: true
+  repo:
+    description: 'Terraform repository. If null, the current service repository is used.'
+    required: false
+  repo-ref:
+    description: 'Git ref (branch or commit) to checkout terraform from. Only used if terraform-repo is not null.'
+    required: false
+  repo-token:
+    description: 'Token to use when checking out terraform repo. Only used if terraform-repo is not null.'
+    required: false
+  working-directory:
+    description: 'Path to the directory containing the Terraform configurations.'
+    required: true
+  state-bucket:
+    description: "Terraform state S3 bucket"
+    required: true
+  state-bucket-key:
+    description: "Terraform state S3 bucket key"
+    required: true
+  init-args:
+    description: 'Additional arguments to pass to terraform init'
+    required: false
+    default: ''
+  plan-args:
+    description: 'Additional arguments to pass to terraform plan'
+    required: false
+    default: ''
+  output-variables:
+    description: 'Comma-separated list of Terraform output variables to retrieve'
+    required: false
+    default: ''
+  apply-changes:
+    description: 'Apply changes without create a validation issue'
+    required: false
+    default: 'false'
+outputs:
+  tf-output:
+    description: 'The tf output'
+    value: ${{ steps.tf-outputs.outputs }}
+runs:
+  using: composite
+  steps:
+    - name: test
+      shell: bash
+      run: aws --version
+
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.tf-version }}
+        terraform_wrapper: false
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Checkout Terraform Code
+      if: ${{ inputs.repo }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        ref: ${{ inputs.repo-ref }}
+        token: ${{ inputs.repo-token }}
+        path: terraform-repo
+
+    - name: Setup working directory
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.repo }}" ]; then
+          echo "WORKING_DIR=terraform-repo/${{ inputs.working-directory }}" >> $GITHUB_ENV
+        else
+          echo "WORKING_DIR=${{ inputs.working-directory }}" >> $GITHUB_ENV
+        fi
+
+    - name: Setup .tf-state bucket
+      uses: INFOTAIN/trm-pipelines-templates/actions/config-bucket@main
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        bucket: ${{ inputs.state-bucket }}
+
+    - name: Terraform Init
+      shell: bash
+      run: terraform init -reconfigure -backend-config=bucket=${{ inputs.state-bucket }} -backend-config=key=${{ inputs.state-bucket-key }} -backend-config=region=${{ inputs.aws-region }} ${{ inputs.init-args }}
+      env:
+        TF_IN_AUTOMATION: "true"
+        TF_INPUT: "false"
+      working-directory: ${{ env.WORKING_DIR }}
+
+    - name: Terraform Plan
+      shell: bash
+      run: |
+        set +e  # Disable exit immediately on non-zero exit codes
+        terraform plan -out tf-plan -detailed-exitcode ${{ inputs.plan-args }}
+        PLAN_EXIT_CODE=$?
+        terraform show -no-color tf-plan > plan.txt
+        echo "PLAN_EXIT_CODE=$PLAN_EXIT_CODE" >> "$GITHUB_ENV"
+        set -e  # Re-enable exit immediately on non-zero exit codes
+      env:
+        TF_IN_AUTOMATION: "true"
+        TF_INPUT: "false"
+      working-directory: ${{ env.WORKING_DIR }}
+
+    - name: Validate if exists changes
+      if: env.PLAN_EXIT_CODE == '1'
+      shell: bash
+      run: |
+        exit 1;
+
+    - name: Read Plan
+      if: env.PLAN_EXIT_CODE == '2'
+      id: read-tf-plan
+      uses: INFOTAIN/trm-pipelines-templates/actions/read-file@main
+      with:
+        path: ${{ env.WORKING_DIR }}/plan.txt
+
+    #todo: andre.alves will create own action with a wait for approval configurable.
+    - name: Create issue
+      uses: trstringer/manual-approval@v1
+      if: fromJSON(inputs.apply-changes || false) == false && env.PLAN_EXIT_CODE == '2' && fromJSON(inputs.dry-run || false) == false
+      with:
+        secret: ${{ github.TOKEN }}
+        approvers: ${{ inputs.approvers }}
+        minimum-approvals: 1
+        issue-title: "Terraform changes to apply"
+        issue-body: "```${{ steps.read-tf-plan.outputs.content }}```"
+        exclude-workflow-initiator-as-approver: false
+        additional-approved-words: ''
+        additional-denied-words: ''
+
+    - name: Terraform Apply
+      if: env.PLAN_EXIT_CODE == '2' && fromJSON(inputs.dry-run || false) == false
+      shell: bash
+      run: |
+        terraform apply -auto-approve tf-plan
+      env:
+        TF_IN_AUTOMATION: "true"
+        TF_INPUT: "false"
+      working-directory: ${{ env.WORKING_DIR }}
+
+    - name: Retrieve Terraform Outputs
+      if: inputs.output-variables != ''
+      shell: bash
+      run: |
+        IFS=',' read -r -a output_vars <<< "${{ inputs.output-variables }}"
+        for var in "${output_vars[@]}"
+        do
+          value=$(terraform output -raw $var)
+          echo "$var=$value" >> "$GITHUB_ENV"
+        done
+      working-directory: ${{ env.WORKING_DIR }}
+      env:
+        TF_IN_AUTOMATION: "true"
+        TF_INPUT: "false"
+
+    - name: clean
+      shell: bash
+      run: |
+        unset PLAN_EXIT_CODE
+        echo "PLAN_EXIT_CODE=" >> "$GITHUB_ENV"

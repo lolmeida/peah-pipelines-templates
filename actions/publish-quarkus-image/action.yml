@@ -1,0 +1,88 @@
+name: Publish quarkus image
+description: Setup ECR & Publish Quarkus Image
+inputs:
+  aws-region:
+    description: "AWS Region"
+    required: true
+  aws-role:
+    description: "The role to access the ECR."
+    required: true
+  repo-token:
+    description: 'Token to use when "git checkout" terraform'
+    required: true
+  service-name:
+    description: 'Name of the service'
+    required: true
+  tag-mutability:
+    description: 'Immutable Tags Password. One of the following: IMMUTABLE / MUTABLE'
+    default: "IMMUTABLE"
+    required: false
+  tag:
+    description: "The tag for the generated image"
+    required: true
+  approvers:
+    description: "The list of approvers"
+    required: false
+    default: "no-user"
+  dry-run:
+    description: "Dry run test"
+    required: false
+    default: "false"
+  setup-ecr:
+    description: "Setup ECR"
+    required: false
+    default: "false"
+  ecr-repository-url:
+    description: "The ecr repository url"
+    required: false
+  ecr-repo-name:
+    description: "The ecr repo name"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup ECR
+      if: ${{ inputs.setup-ecr == 'true' }}
+      uses: INFOTAIN/trm-pipelines-templates/actions/setup-ecr@main
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        aws-role: ${{ inputs.aws-role }}
+        repo-token: ${{ inputs.repo-token }}
+        service-name: ${{ inputs.service-name }}
+        approvers: ${{ inputs.approvers }}
+        tag-mutability: ${{ inputs.tag-mutability }}
+        dry-run: ${{ inputs.dry-run }}
+
+    - name: ECR Login without ECR Setup
+      if: ${{ inputs.setup-ecr == 'false' }}
+      run: |
+        echo "ecr_repository_url=${{ inputs.ecr-repository-url }}" >> $GITHUB_ENV
+        echo "ecr_name=${{ inputs.ecr-repo-name }}" >> $GITHUB_ENV
+        aws ecr get-login-password --region ${{ inputs.aws-region }} | docker login --username AWS --password-stdin ${{ inputs.ecr-repository-url }}
+      shell: bash
+
+    - name: Check image tag
+      id: check-image
+      run: |
+        IMAGE_META="$(aws ecr batch-get-image --repository-name=${{ inputs.service-name }} --image-ids=imageTag=${{ inputs.tag }} --query 'images[].imageId.imageTag' --output text --region ${{ inputs.aws-region }})"
+        if [[ "${{ inputs.tag }}" == "${IMAGE_META}" ]]; then
+          EXISTS="YES"
+        else
+          EXISTS="NO"
+        fi
+        echo "exists=${EXISTS}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Show Check
+      run: echo "Image exists ${{ steps.check-image.outputs.exists }}"
+      shell: bash
+
+    - name: Create and Publish Image
+      if: steps.check-image.outputs.exists == 'NO'
+      run: |
+        python ${{ github.action_path }}/publish_image.py --aws-region ${{ inputs.aws-region }} \
+          --tags ${{ inputs.tag }} \
+          --repository ${{ inputs.service-name }} \
+          --registry ${{ inputs.ecr-repository-url }}
+      shell: bash
