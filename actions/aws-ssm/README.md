@@ -16,7 +16,7 @@ To use the action, add a step to your workflow that uses the following syntax.
 
 ```
 - name: Step name
-  uses:  INFOTAIN/trm-pipelines-templates/actions/aws-ssm@main
+  uses:  lolmeida/peah-pipelines-templates/actions/aws-ssm@main
   with:
     parameters: |
       SIGNING_KEYSTORE_PASSWORD,/ices/trm/signing_service/emea/test/keystore-password

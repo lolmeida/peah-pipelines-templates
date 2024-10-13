@@ -44,7 +44,7 @@ runs:
   steps:
     - name: Setup ECR
       if: ${{ inputs.setup-ecr == 'true' }}
-      uses: INFOTAIN/trm-pipelines-templates/actions/setup-ecr@main
+      uses: lolmeida/peah-pipelines-templates/actions/setup-ecr@main
       with:
         aws-region: ${{ inputs.aws-region }}
         aws-role: ${{ inputs.aws-role }}

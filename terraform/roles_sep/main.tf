@@ -42,7 +42,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
       test     = "StringLike"
       variable = "${local.token_url}:sub"
       values   = [
-        "repo:INFOTAIN/*:*"
+        "repo:lolmeida/*:*"
       ]
     }
   }
@@ -169,7 +169,7 @@ resource "aws_iam_role_policy" "sep-policy" {
           "arn:${local.aws_partition}:memorydb:*:${local.aws_account}:parametergroup/*",
           "arn:${local.aws_partition}:memorydb:*:${local.aws_account}:snapshot/*",
           "arn:${local.aws_partition}:ssm:*:${local.aws_account}:parameter/ices/*",
-          "arn:${local.aws_partition}:ssm:*:${local.aws_account}:parameter/infotain/*",
+          "arn:${local.aws_partition}:ssm:*:${local.aws_account}:parameter/lolmeida/*",
           "arn:${local.aws_partition}:lambda:*:*:function:ices-trm-*",
           "arn:${local.aws_partition}:backup:*:*:backup-vault:ices-*",
           "arn:${local.aws_partition}:iam::${local.aws_account}:policy/*ices-*",

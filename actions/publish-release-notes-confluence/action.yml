@@ -31,7 +31,7 @@ runs:
         --jira-issues="${{ inputs.jira-issues }}"
 
     - name: Publish
-      uses: INFOTAIN/trm-pipelines-templates/actions/confluence@main
+      uses: lolmeida/peah-pipelines-templates/actions/confluence@main
       with:
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}

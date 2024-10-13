@@ -44,7 +44,7 @@ runs:
         result-encoding: string
 
     - name: "Notify teams channel"
-      uses: INFOTAIN/trm-pipelines-templates/actions/teams-notification@main
+      uses: lolmeida/peah-pipelines-templates/actions/teams-notification@main
       with:
         body-json: "{
           \"type\": \"message\",
