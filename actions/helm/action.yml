@@ -49,40 +49,25 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Assume CICD Role
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ${{ inputs.aws-region }}
-        role-to-assume: ${{ inputs.aws-cicd-role }}
-        role-skip-session-tagging: true
-        role-chaining: false
-
-    - name: Assume Kubernetes Role
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-region: ${{ inputs.aws-region }}
-        role-to-assume: ${{ inputs.aws-role }}
-        role-skip-session-tagging: true
-        role-chaining: true
-
     - name: Helm details
+      shell: bash
       run: |
         aws sts get-caller-identity
         echo "Inputs: ${{ toJSON(inputs) }}"
-      shell: bash
 
     - name: Update Kubeconfig
-      run: aws eks update-kubeconfig --name ${{inputs.eks-name}} --region ${{inputs.aws-region}} --alias ${{inputs.hub}}-${{inputs.environment}}
       shell: bash
+      run: aws eks update-kubeconfig --name ${{inputs.eks-name}} --region ${{inputs.aws-region}} --alias ${{inputs.hub}}-${{inputs.environment}}
 
     - name: Prepare
+      shell: bash
       id: prepare
       run: python ${{ github.action_path }}/translate-helm-vars.py
-      shell: bash
       env:
         INPUT_HELM_VARS: ${{ inputs.helm-vars }}
 
     - name: Run Helm
+      shell: bash
       run: |
         sed -i 's/%APP_VERSION%/'${{ inputs.release-version}}'/g' kubernetes/Chart.yaml
         sed -i 's/%APP_NAME%/'${{ inputs.service}}'/g' kubernetes/Chart.yaml
@@ -90,6 +75,5 @@ runs:
         EXTRA_HELM_FILES="${FILE_ARGS:--f kubernetes/values/common.yaml -f kubernetes/values/${{ inputs.hub }}/${{ inputs.environment}}.yaml}"
         helm upgrade --install ${{ inputs.dry-run == 'true' && '--dry-run' || '' }} --atomic --timeout ${{inputs.timeout}} ${{ 
         inputs.service }} kubernetes --namespace ${{inputs.namespace}} ${{steps.prepare.outputs.HELM_VARS }} --set-string releaseVersion=${{ inputs.release-version}} --set-string clusterName=${{inputs.eks-name}}  --set-string clusterVersion=${EKS_VERSION} ${EXTRA_HELM_FILES}
-      shell: bash
       env:
         FILE_ARGS: ${{ inputs.file-args}}
