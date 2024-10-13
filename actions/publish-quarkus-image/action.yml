@@ -54,6 +54,8 @@ runs:
         tag-mutability: ${{ inputs.tag-mutability }}
         dry-run: ${{ inputs.dry-run }}
 
+
+
     - name: ECR Login without ECR Setup
       if: ${{ inputs.setup-ecr == 'false' }}
       run: |

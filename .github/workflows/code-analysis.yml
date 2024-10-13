@@ -118,15 +118,6 @@ jobs:
           server-username: SERVER_USERNAME
           server-password: SERVER_PASSWORD
 
-      - name: Download BMW certificates from PKI
-        id: download_certificates
-        run: wget http://sslcrl.bmwgroup.com/pki/BMW_Trusted_Certificates_Latest.jks
-
-      - name: Import Certificates to Java Keystore and Remove Certificate File
-        id: import_certificates
-        run: |
-          $JAVA_HOME/bin/keytool -importkeystore -srckeystore "BMW_Trusted_Certificates_Latest.jks" -destkeystore $JAVA_HOME/lib/security/cacerts -srcstoretype JKS -deststoretype JKS -srcstorepass changeit -deststorepass changeit -v && \
-          rm BMW_Trusted_Certificates_Latest.jks
 
       - uses: actions/cache@v4
         with:
@@ -158,14 +149,6 @@ jobs:
       actions: read
       contents: read
     steps:
-      - name: Validate inputs
-        id: validate_inputs
-        uses: orbit-actions/java-workflows/.github/actions/validate-build-maven-inputs@v1
-        continue-on-error: false
-        with:
-          java-version: ${{ inputs.java-version }}
-          java-distribution: ${{ inputs.java-distribution }}
-
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
@@ -183,15 +166,6 @@ jobs:
           server-username: SERVER_USERNAME
           server-password: SERVER_PASSWORD
 
-      - name: Download BMW certificates from PKI
-        id: download_certificates
-        run: wget http://sslcrl.bmwgroup.com/pki/BMW_Trusted_Certificates_Latest.jks
-
-      - name: Import Certificates to Java Keystore and Remove Certificate File
-        id: import_certificates
-        run: |
-          $JAVA_HOME/bin/keytool -importkeystore -srckeystore "BMW_Trusted_Certificates_Latest.jks" -destkeystore $JAVA_HOME/lib/security/cacerts -srcstoretype JKS -deststoretype JKS -srcstorepass changeit -deststorepass changeit -v && \
-          rm BMW_Trusted_Certificates_Latest.jks
 
       - uses: actions/cache@v4
         with:
