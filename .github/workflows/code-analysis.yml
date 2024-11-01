@@ -91,13 +91,13 @@ jobs:
       java-version: ${{ inputs.java-version }}
       java-distribution: ${{ inputs.java-distribution }}
     steps:
-      - name: Validate inputs
-        id: validate_inputs
-        uses: orbit-actions/java-workflows/.github/actions/validate-build-maven-inputs@v1
-        continue-on-error: false
-        with:
-          java-version: ${{ inputs.java-version }}
-          java-distribution: ${{ inputs.java-distribution }}
+#      - name: Validate inputs
+#        id: validate_inputs
+#        uses: orbit-actions/java-workflows/.github/actions/validate-build-maven-inputs@v1
+#        continue-on-error: false
+#        with:
+#          java-version: ${{ inputs.java-version }}
+#          java-distribution: ${{ inputs.java-distribution }}
 
       - name: Checkout repository
         id: checkout
@@ -136,10 +136,10 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         run: ./mvnw ${{ matrix.args.command }} -Dstyle.color=always
 
-      - name: Metrics collector
-        id: metrics_collector
-        if: always()
-        uses: orbit-actions/metrics-collector@v1
+#      - name: Metrics collector
+#        id: metrics_collector
+#        if: always()
+#        uses: orbit-actions/metrics-collector@v1
 
   codeql-maven:
     runs-on: ${{ inputs.runner-label }}
